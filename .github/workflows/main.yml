@@ -1,4 +1,4 @@
-name: Manual Android Release Build
+name: Manual Android Release Build and automatic fixed issue
 
 on:
   workflow_dispatch:
