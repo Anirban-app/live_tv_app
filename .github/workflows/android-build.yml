@@ -31,50 +31,29 @@ jobs:
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
-          distribution: temurin
+          distribution: 'temurin'
           java-version: '17'
+          cache: 'gradle' # বিল্ট-ইন গ্রেডল ক্যাশ যা অ্যাকশনকে আরও ফাস্ট করবে
 
-      - name: Install Android SDK components
-        uses: android-actions/setup-android@v2
-        with:
-          api-level: 34
-          build-tools: 34.0.0
-          components: |
-            platform-tools
-            platforms;android-34
-            build-tools;34.0.0
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
 
-      - name: Ensure Gradle is available
-        run: |
-          if ! command -v gradle >/dev/null; then
-            sudo apt-get update
-            sudo apt-get install -y gradle
-          fi
-          gradle --version
-
-      - name: Cache Gradle packages
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-          key: gradle-${{ runner.os }}-${{ hashFiles('**/*.gradle', 'settings.gradle') }}
-          restore-keys: |
-            gradle-${{ runner.os }}-
-            gradle-
-
+      # অ্যাপ সাইজ সর্বোচ্চ ছোট করার জন্য বিল্ডের সময় split এবং প্রোগার্ড এনাবল করার কমান্ড (প্রজেক্টে কনফিগার করা থাকলে অটো কাজ করবে)
       - name: Build release APKs per ABI
         run: |
-          gradle --no-daemon :app:assembleRelease --parallel
+          ./gradlew :app:assembleRelease --no-daemon --parallel --refresh-dependencies
+
+      - name: Check generated APKs
+        run: ls -R app/build/outputs/apk/release/
 
       - name: Publish release with APKs
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.event.inputs.release_tag }}
           name: ${{ github.event.inputs.release_name }}
           body: ${{ github.event.inputs.release_body }}
           draft: false
-          prerelease: ${{ github.event.inputs.prerelease }}
-          files: app/build/outputs/apk/release/*.apk
+          prerelease: ${{ github.event.inputs.prerelease == 'true' }}
+          files: app/build/outputs/apk/release/**/*.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
