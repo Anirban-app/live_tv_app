@@ -22,7 +22,10 @@ android {
 
     buildTypes {
         release {
-            minifyEnabled false
+            // অ্যাপের সাইজ সর্বোচ্চ ছোট করার জন্য এই দুটি ফিচার ট্রু করা হলো
+            minifyEnabled true
+            shrinkResources true
+            
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
         debug {
@@ -57,12 +60,20 @@ dependencies {
     implementation 'androidx.viewpager2:viewpager2:1.1.0'
     implementation 'androidx.leanback:leanback:1.1.0'
     implementation 'com.google.android.material:material:1.11.1'
+    
+    // Networking
     implementation 'com.squareup.retrofit2:retrofit:2.9.0'
     implementation 'com.squareup.retrofit2:converter-gson:2.9.0'
     implementation 'com.squareup.okhttp3:okhttp:4.11.0'
+    
+    // Media Player (ExoPlayer)
     implementation 'com.google.android.exoplayer:exoplayer:2.20.3'
+    
+    // Image Loading
     implementation 'com.github.bumptech.glide:glide:4.15.1'
     annotationProcessor 'com.github.bumptech.glide:compiler:4.15.1'
+    
+    // Testing
     testImplementation 'junit:junit:4.13.2'
     androidTestImplementation 'androidx.test.ext:junit:1.1.6'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
