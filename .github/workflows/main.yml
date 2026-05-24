@@ -1,4 +1,4 @@
-name: Dynamic Environment Project Injector & Builder
+name: Super Intelligent Boilerplate Injector & Builder
 
 on:
   workflow_dispatch:
@@ -27,68 +27,107 @@ jobs:
           java-version: '17'
           cache: 'gradle'
 
-      # স্টেপ ১: রানার এনভায়রনমেন্টে ফ্রেশ ব্যাকআপ ডিরেক্টরিতে আপনার রিপোর সোর্স ফাইলগুলো সেভ করা
-      - name: Backup Repository Source Files
+      # স্টেপ ১: আপনার রিপোজিটরির মেইন ফাইলগুলো একটি সুরক্ষিত অস্থায়ী ডিরেক্টরিতে ব্যাকআপ নেওয়া
+      - name: Secure Original Repository Source
         run: |
-          echo "📦 Creating a safe backup of your repository files..."
-          mkdir -p /tmp/user_source/app
+          echo "📦 Backing up original repository configurations and source files..."
+          mkdir -p /tmp/orig_source/app
           
-          # আপনার আসল src এবং gradle কনফিগারেশনগুলো নিরাপদ জায়গায় কপি করা হচ্ছে
-          [ -d "app/src" ] && cp -r app/src /tmp/user_source/app/
-          [ -f "settings.gradle" ] && cp settings.gradle /tmp/user_source/
-          [ -f "build.gradle" ] && cp build.gradle /tmp/user_source/
-          [ -f "app/build.gradle" ] && cp app/build.gradle /tmp/user_source/app/
+          [ -d "app/src" ] && cp -r app/src /tmp/orig_source/app/
+          [ -f "settings.gradle" ] && cp settings.gradle /tmp/orig_source/
+          [ -f "build.gradle" ] && cp build.gradle /tmp/orig_source/
+          [ -f "app/build.gradle" ] && cp app/build.gradle /tmp/orig_source/app/
           
-          echo "✅ Source files backed up successfully."
+          echo "✅ Backup complete."
 
-      # স্টেপ ২: ফ্রেশ এনভায়রনমেন্টে একটি ক্লীন অ্যান্ড্রয়েড প্রজেক্ট স্ট্রাকচার তৈরি করা
-      - name: Scaffold Fresh Android Environment Project
+      # স্টেপ ২: বর্তমান ওয়ার্কস্পেস সম্পূর্ণ ফ্লাশ করে একটি স্ট্যান্ডার্ড Empty Boilerplate তৈরি করা
+      - name: Create Fresh Empty Boilerplate Project
         run: |
-          echo "🏗️ Cleaning workspace and building a fresh template..."
-          # কারেন্ট ওয়ার্কস্পেস সম্পূর্ণ ফ্লাশ করা
+          echo "🏗️ Scraping workspace and generating a clean boilerplate template..."
           rm -rf *
           
-          # ফ্রেশ অ্যান্ড্রয়েড স্ট্যান্ডার্ড ডিরেক্টরি তৈরি
+          # অ্যান্ড্রয়েড স্ট্যান্ডার্ড এমটি প্রজেক্ট আর্কিটেকচার তৈরি
           mkdir -p app/src/main/java
-          mkdir -p app/src/main/res
+          mkdir -p app/src/main/res/layout
+          mkdir -p app/src/main/res/values
           
-          echo "✅ Fresh workspace scaffolded."
+          # একটি ডিফল্ট ব্ল্যাঙ্ক বেস তৈরি (যা পরে রিপ্লেস হবে)
+          echo "include ':app'" > settings.gradle
+          echo "buildscript { repositories { google(); mavenCentral() }; dependencies {} }; allprojects { repositories { google(); mavenCentral() } }" > build.gradle
+          
+          echo "✅ Empty boilerplate template generated."
 
-      # স্টেপ ৩: ব্যাকআপ থেকে ফাইল রিড করে ফ্রেশ প্রজেক্টের ভিতরে রিপ্লেস ও মার্জ করা
-      - name: Read and Inject Source Files Into New Environment
+      # স্টেপ ৩: গ্লোবাল গ্রেডল সিঙ্ক এনভায়রনমেন্ট রুল সেট করা (যাতে ডিপেনডেন্সি লক না হয়)
+      - name: Universal Repository Lock Bypass
         run: |
-          echo "🔄 Injecting gradle configurations and rewriting src/..."
+          mkdir -p ~/.gradle
+          cat << 'EOF' > ~/.gradle/init.gradle
+          allprojects {
+              buildscript {
+                  repositories {
+                      google()
+                      mavenCentral()
+                      maven { url "https://plugins.gradle.org/m2/" }
+                  }
+              }
+              repositories {
+                  google()
+                  mavenCentral()
+                  maven { url 'https://jitpack.io' }
+              }
+          }
+          settingsEvaluated { settings ->
+              settings.pluginManagement {
+                  repositories {
+                      google()
+                      mavenCentral()
+                  }
+              }
+              settings.dependencyResolutionManagement {
+                  repositoriesMode.set(RepositoriesMode.PREFER_SETTINGS)
+                  repositories {
+                      google()
+                      mavenCentral()
+                      maven { url 'https://jitpack.io' }
+                  }
+              }
+          }
+          EOF
+          echo "✅ Universal init.gradle injected."
+
+      # স্টেপ ৪: ইন্টেলিজেন্ট কোড রিপ্লেসমেন্ট এবং মেইন সোর্স ইনজেকশন
+      - name: Parse and Replace Main Configurations & App Files
+        run: |
+          echo "🔄 Merging main configurations into boilerplate..."
           
-          # ১. রুট লেভেলের কনফিগারেশন ফাইলগুলো রিড করে ফ্রেশ প্রজেক্টে রাইট করা
-          if [ -f "/tmp/user_source/settings.gradle" ]; then
-            cp /tmp/user_source/settings.gradle ./
+          # ১. রুট এবং সেটিংস গ্রেডল ফাইলের মেইন কোড ডাইনামিকালি রিপ্লেস করা
+          if [ -f "/tmp/orig_source/settings.gradle" ]; then
+            cp /tmp/orig_source/settings.gradle ./settings.gradle
+          fi
+          
+          if [ -f "/tmp/orig_source/build.gradle" ]; then
+            cp /tmp/orig_source/build.gradle ./build.gradle
+          fi
+          
+          # ২. app/build.gradle এর ডিপেনডেন্সিস ও কোর প্লাগইন রিপ্লেস করা
+          if [ -f "/tmp/orig_source/app/build.gradle" ]; then
+            cp /tmp/orig_source/app/build.gradle ./app/build.gradle
+          fi
+          
+          # ৩. আপনার আসল অ্যাপ ফোল্ডারের সমস্ত সোর্স কোড (java, res, manifest) সম্পূর্ণ ইনজেক্ট করা
+          if [ -d "/tmp/orig_source/app/src" ]; then
+            rm -rf app/src
+            cp -r /tmp/orig_source/app/src app/
+            echo "🚀 [SUCCESS] App folder source and dependencies merged into boilerplate perfectly!"
           else
-            echo "include ':app'" > settings.gradle
-          fi
-          
-          if [ -f "/tmp/user_source/build.gradle" ]; then
-            cp /tmp/user_source/build.gradle ./
-          fi
-          
-          # ২. অ্যাপ মডিউলের কনফিগারেশন (app.gradle / app/build.gradle) রিপ্লেস করা
-          if [ -f "/tmp/user_source/app/build.gradle" ]; then
-            cp /tmp/user_source/app/build.gradle app/
-          fi
-          
-          # ৩. আপনার আসল src/ ফোল্ডারের সমস্ত লজিক, লেআউট, ম্যানিফেস্ট ফ্রেশ প্রজেক্টে সম্পূর্ণ রিপ্লেস করা
-          if [ -d "/tmp/user_source/app/src" ]; then
-            rm -rf app/src # ফ্রেশ ডামি ডিরেক্টরি ডিলেট করে আপনার আসল সোর্স ইনজেক্ট করা হচ্ছে
-            cp -r /tmp/user_source/app/src app/
-            echo "🚀 Ultimate Source Injection Complete! All src/ files replaced successfully."
-          else
-            echo "❌ Error: High-level failure, user app/src directory not found in repository!"
+            echo "❌ Critical Error: Original app/src not found!"
             exit 1
           fi
 
-      # স্টেপ ৪: ফ্রেশ প্রজেক্টের সাথে সামঞ্জস্যপূর্ণ গ্রেডল র‍্যাপার অটো-জেনারেট করা
-      - name: Generate Fresh Matching Gradle Wrapper
+      # স্টেপ ৫: রিকোয়ার্ড প্লাগইন অনুযায়ী গ্রেডল র‍্যাপার আপডেট করা
+      - name: Auto-Detect and Upgrade Gradle Wrapper
         run: |
-          echo "🔍 Analyzing AGP version to generate matching gradle wrapper..."
+          echo "🔍 Detecting correct gradle version from your project requirements..."
           AGP_VERSION=$(grep -oP "com.android.tools.build:gradle:\K[0-9.]+" build.gradle || grep -oP "id 'com.android.application' version '\K[0-9.]+" build.gradle || echo "8.2.2")
           
           if [[ "$AGP_VERSION" == 8.5* || "$AGP_VERSION" == 8.6* ]]; then
@@ -99,17 +138,18 @@ jobs:
             GRADLE_VERSION="8.2"
           fi
           
+          echo "🔄 Upgrading Gradle wrapper to version $GRADLE_VERSION..."
           gradle wrapper --gradle-version $GRADLE_VERSION
           chmod +x gradlew
 
-      # স্টেপ ৫: অপ্টিমাইজড প্রপার্টিজ ইঞ্জিন সেটআপ করা
-      - name: Setup Gradle Properties
+      # স্টেপ ৬: প্রপার্টিজ ইঞ্জিন অপ্টিমাইজেশন
+      - name: Setup Optimized Gradle Properties
         run: |
           echo "android.useAndroidX=true" > gradle.properties
           echo "android.enableJetifier=true" >> gradle.properties
           echo "org.gradle.jvmargs=-Xmx3072m -XX:MaxMetaspaceSize=768m" >> gradle.properties
 
-      # স্টেপ ৬: প্রজেক্ট মোড ফোর্স করে ফাইনাল রিলিজ বিল্ড রান করা
-      - name: Build Split Release APKs
+      # স্টেপ ৭: একদম ফ্রেশ গ্রেডল সিঙ্কের মাধ্যমে ০% এরর টার্গেটে রিলিজ বিল্ড রান করা
+      - name: Run Zero-Error Release Build
         run: |
-          ./gradlew clean :app:assembleRelease --no-daemon --parallel --stacktrace -Dorg.gradle.dependency.resolution.control.mode=PREFER_PROJECT
+          ./gradlew clean :app:assembleRelease --no-daemon --parallel --stacktrace
