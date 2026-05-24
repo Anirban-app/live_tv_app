@@ -1,2 +1,20 @@
+pluginManagement {
+    repositories {
+        google()
+        mavenCentral()
+        gradlePluginPortal()
+    }
+}
+
+dependencyResolutionManagement {
+    // সিআই এনভায়রনমেন্টের জোরপূর্বক সেটিংস এড়াতে এটি PREFER_PROJECT করে দেওয়া হলো
+    repositoriesMode.set(RepositoriesMode.PREFER_PROJECT)
+    repositories {
+        google()
+        mavenCentral()
+        maven { url 'https://jitpack.io' }
+    }
+}
+
 rootProject.name = "LiveTVApp"
 include ":app"
