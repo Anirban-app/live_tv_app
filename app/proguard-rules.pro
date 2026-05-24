@@ -1,0 +1,4 @@
+-keep class com.example.livetvapp.** { *; }
+-keepclassmembers class com.example.livetvapp.** { *; }
+-keepattributes Signature
+-keepattributes *Annotation*

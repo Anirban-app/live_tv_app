@@ -1,0 +1,16 @@
+<resources>
+    <string name="app_name">Live TV App</string>
+    <string name="action_settings">Settings</string>
+    <string name="title_activity_main">Mobile Home</string>
+    <string name="title_activity_tv_home">TV Home</string>
+    <string name="title_activity_player">Player</string>
+    <string name="login_title">Login or Register</string>
+    <string name="login_button">Login</string>
+    <string name="register_button">Register</string>
+    <string name="username_hint">Username</string>
+    <string name="password_hint">Password</string>
+    <string name="theme_light">Light Theme</string>
+    <string name="theme_dark">Dark Theme</string>
+    <string name="boot_to_player">Boot directly to player</string>
+    <string name="channel_overlay_text">Now playing</string>
+</resources>
