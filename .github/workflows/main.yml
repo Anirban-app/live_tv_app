@@ -1,4 +1,4 @@
-name: Manual Android Release Build and automatic fixed issue
+name: Manual Android Release Build. & auto fixed
 
 on:
   workflow_dispatch:
@@ -52,7 +52,6 @@ jobs:
             elif [[ "$AGP_VERSION" == 8.2* ]]; then
               GRADLE_VERSION="8.2"
             elif [[ "$AGP_VERSION" == 9.0* ]]; then
-              # যদি ভুলবশত ৯.০ থাকে, তবে সেটিকে হ্যান্ডেল করার জন্য লেটেস্ট স্টেবল ৮.x দেওয়া হলো
               GRADLE_VERSION="8.5"
             else
               GRADLE_VERSION="8.5" # ডিফল্ট সেফ জোন ভার্সন
@@ -65,16 +64,33 @@ jobs:
           fi
           chmod +x gradlew
 
-      # স্টেপ ২: অটো-ম্যাচড গ্রেডল ব্যবহার করে ক্লিন বিল্ড রান করা
+      # স্টেপ ২: AndroidX এবং সাইজ অপ্টিমাইজেশনের জন্য রান-টাইমে gradle.properties ফাইল অটো-জেনারেট/আপডেট করবে
+      - name: Auto-generate/Fix gradle.properties
+        run: |
+          echo "🛠️ Configuring gradle.properties with AndroidX support..."
+          if [ ! -f "gradle.properties" ]; then
+            touch gradle.properties
+          fi
+          
+          # AndroidX এবং জেটপ্লায়ার রুলস প্রপার্টিজে পুশ করা
+          echo "android.useAndroidX=true" >> gradle.properties
+          echo "android.enableJetifier=true" >> gradle.properties
+          
+          # বিল্ড স্পীড বাড়ানো এবং মেমোরি অপ্টিমাইজেশন (Maximum Small Size বিল্ডকে স্টেবল করার জন্য)
+          echo "org.gradle.jvmargs=-Xmx2048m -XX:MaxMetaspaceSize=512m" >> gradle.properties
+          
+          echo "✅ gradle.properties setup completed successfully."
+
+      # স্টেপ ৩: অটো-ম্যাচড গ্রেডল ব্যবহার করে ক্লিন বিল্ড রান করা
       - name: Clean & Build Split Release APKs
         run: |
           ./gradlew clean :app:assembleRelease --no-daemon --parallel --refresh-dependencies
 
-      # স্টেপ ৩: আর্টফ্যাক্টস ভেরিফাই করা
+      # স্টেপ ৪: আর্টফ্যাক্টস ভেরিফাই করা
       - name: Verify Generated APKs
         run: ls -R app/build/outputs/apk/release/
 
-      # স্টেপ ৪: গিটহাবে রিলিজ পুশ করা
+      # স্টেপ ৫: গিটহাবে রিলিজ পুশ করা
       - name: Publish Release to GitHub
         uses: softprops/action-gh-release@v2
         with:
