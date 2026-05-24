@@ -1,0 +1,62 @@
+name: Manual Android Release Build
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 'Release tag (for example v1.0.0)'
+        required: true
+        default: 'v1.0.0'
+      release_name:
+        description: 'Release title'
+        required: true
+        default: 'Manual APK Release'
+      release_body:
+        description: 'Release notes'
+        required: false
+        default: 'APK artifacts built manually via GitHub Actions.'
+      prerelease:
+        description: 'Mark this release as prerelease?'
+        required: false
+        default: 'false'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Cache Gradle packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ runner.os }}-${{ hashFiles('**/*.gradle', 'settings.gradle') }}
+          restore-keys: |
+            gradle-${{ runner.os }}-
+            gradle-
+
+      - name: Build release APKs per ABI
+        run: |
+          gradle --no-daemon :app:assembleRelease --parallel --split-per-abi
+
+      - name: Publish release with APKs
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ github.event.inputs.release_tag }}
+          name: ${{ github.event.inputs.release_name }}
+          body: ${{ github.event.inputs.release_body }}
+          draft: false
+          prerelease: ${{ github.event.inputs.prerelease }}
+          files: app/build/outputs/apk/release/*.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
