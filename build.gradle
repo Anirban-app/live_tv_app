@@ -1,10 +1,11 @@
 buildscript {
     repositories {
-        google()
+        google()          // গুগলের লাইব্রেরি আগে পাওয়ার জন্য সবার উপরে
         mavenCentral()
     }
     dependencies {
-        classpath 'com.android.tools.build:gradle:9.0.0'
+        // অ্যান্ড্রয়েড গ্রেডল প্লাগইনের স্টেবল ভার্সন ব্যবহার করা হলো
+        classpath 'com.android.tools.build:gradle:8.2.2'
     }
 }
 
@@ -12,5 +13,11 @@ allprojects {
     repositories {
         google()
         mavenCentral()
+        // গ্লাইড বা অন্যান্য অনেক থার্ডপার্টি লাইব্রেরির জন্য এটি প্রয়োজন হয়
+        maven { url 'https://jitpack.io' }
     }
+}
+
+task clean(type: Delete) {
+    delete rootProject.buildDir
 }
