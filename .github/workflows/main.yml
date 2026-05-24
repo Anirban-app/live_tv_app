@@ -1,31 +1,23 @@
-name: Manual Android Release Build Fixed
+name: Dynamic Environment Project Injector & Builder
 
 on:
   workflow_dispatch:
     inputs:
       release_tag:
-        description: 'Release tag (for example v1.0.0)'
+        description: 'Release tag (e.g. v1.0.0)'
         required: true
         default: 'v1.0.0'
       release_name:
         description: 'Release title'
         required: true
-        default: 'Manual APK Release'
-      release_body:
-        description: 'Release notes'
-        required: false
-        default: 'APK artifacts built manually via GitHub Actions.'
-      prerelease:
-        description: 'Mark this release as prerelease?'
-        required: false
-        default: 'false'
+        default: 'Premium Live TV Build'
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
+      - name: Checkout Source Code
         uses: actions/checkout@v4
 
       - name: Set up JDK 17
@@ -33,98 +25,91 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: '17'
+          cache: 'gradle'
 
-      # স্টেপ ১: প্রজেক্টের build.gradle ফাইল রিড করে সঠিক গ্রেডল ভার্সন ডিটেক্ট এবং র‍্যাপার জেনারেট করবে
-      - name: Detect AGP and Auto-generate Matching Gradle Wrapper
+      # স্টেপ ১: রানার এনভায়রনমেন্টে ফ্রেশ ব্যাকআপ ডিরেক্টরিতে আপনার রিপোর সোর্স ফাইলগুলো সেভ করা
+      - name: Backup Repository Source Files
         run: |
-          if [ ! -f "gradlew" ]; then
-            echo "⚠️ gradlew missing! Analyzing project files to match version..."
-            AGP_VERSION=$(grep -oP "com.android.tools.build:gradle:\K[0-9.]+" build.gradle || grep -oP "id 'com.android.application' version '\K[0-9.]+" build.gradle || echo "8.2.2")
-            echo "🔍 Detected Android Gradle Plugin (AGP) Version: $AGP_VERSION"
-            
-            if [[ "$AGP_VERSION" == 8.5* || "$AGP_VERSION" == 8.6* ]]; then
-              GRADLE_VERSION="8.7"
-            elif [[ "$AGP_VERSION" == 8.3* || "$AGP_VERSION" == 8.4* ]]; then
-              GRADLE_VERSION="8.4"
-            elif [[ "$AGP_VERSION" == 8.2* ]]; then
-              GRADLE_VERSION="8.2"
-            else
-              GRADLE_VERSION="8.5"
-            fi
-            
-            echo "🚀 Generating Gradle Wrapper ($GRADLE_VERSION)..."
-            gradle wrapper --gradle-version $GRADLE_VERSION
+          echo "📦 Creating a safe backup of your repository files..."
+          mkdir -p /tmp/user_source/app
+          
+          # আপনার আসল src এবং gradle কনফিগারেশনগুলো নিরাপদ জায়গায় কপি করা হচ্ছে
+          [ -d "app/src" ] && cp -r app/src /tmp/user_source/app/
+          [ -f "settings.gradle" ] && cp settings.gradle /tmp/user_source/
+          [ -f "build.gradle" ] && cp build.gradle /tmp/user_source/
+          [ -f "app/build.gradle" ] && cp app/build.gradle /tmp/user_source/app/
+          
+          echo "✅ Source files backed up successfully."
+
+      # স্টেপ ২: ফ্রেশ এনভায়রনমেন্টে একটি ক্লীন অ্যান্ড্রয়েড প্রজেক্ট স্ট্রাকচার তৈরি করা
+      - name: Scaffold Fresh Android Environment Project
+        run: |
+          echo "🏗️ Cleaning workspace and building a fresh template..."
+          # কারেন্ট ওয়ার্কস্পেস সম্পূর্ণ ফ্লাশ করা
+          rm -rf *
+          
+          # ফ্রেশ অ্যান্ড্রয়েড স্ট্যান্ডার্ড ডিরেক্টরি তৈরি
+          mkdir -p app/src/main/java
+          mkdir -p app/src/main/res
+          
+          echo "✅ Fresh workspace scaffolded."
+
+      # স্টেপ ৩: ব্যাকআপ থেকে ফাইল রিড করে ফ্রেশ প্রজেক্টের ভিতরে রিপ্লেস ও মার্জ করা
+      - name: Read and Inject Source Files Into New Environment
+        run: |
+          echo "🔄 Injecting gradle configurations and rewriting src/..."
+          
+          # ১. রুট লেভেলের কনফিগারেশন ফাইলগুলো রিড করে ফ্রেশ প্রজেক্টে রাইট করা
+          if [ -f "/tmp/user_source/settings.gradle" ]; then
+            cp /tmp/user_source/settings.gradle ./
           else
-            echo "✅ gradlew already found in repository."
+            echo "include ':app'" > settings.gradle
           fi
+          
+          if [ -f "/tmp/user_source/build.gradle" ]; then
+            cp /tmp/user_source/build.gradle ./
+          fi
+          
+          # ২. অ্যাপ মডিউলের কনফিগারেশন (app.gradle / app/build.gradle) রিপ্লেস করা
+          if [ -f "/tmp/user_source/app/build.gradle" ]; then
+            cp /tmp/user_source/app/build.gradle app/
+          fi
+          
+          # ৩. আপনার আসল src/ ফোল্ডারের সমস্ত লজিক, লেআউট, ম্যানিফেস্ট ফ্রেশ প্রজেক্টে সম্পূর্ণ রিপ্লেস করা
+          if [ -d "/tmp/user_source/app/src" ]; then
+            rm -rf app/src # ফ্রেশ ডামি ডিরেক্টরি ডিলেট করে আপনার আসল সোর্স ইনজেক্ট করা হচ্ছে
+            cp -r /tmp/user_source/app/src app/
+            echo "🚀 Ultimate Source Injection Complete! All src/ files replaced successfully."
+          else
+            echo "❌ Error: High-level failure, user app/src directory not found in repository!"
+            exit 1
+          fi
+
+      # স্টেপ ৪: ফ্রেশ প্রজেক্টের সাথে সামঞ্জস্যপূর্ণ গ্রেডল র‍্যাপার অটো-জেনারেট করা
+      - name: Generate Fresh Matching Gradle Wrapper
+        run: |
+          echo "🔍 Analyzing AGP version to generate matching gradle wrapper..."
+          AGP_VERSION=$(grep -oP "com.android.tools.build:gradle:\K[0-9.]+" build.gradle || grep -oP "id 'com.android.application' version '\K[0-9.]+" build.gradle || echo "8.2.2")
+          
+          if [[ "$AGP_VERSION" == 8.5* || "$AGP_VERSION" == 8.6* ]]; then
+            GRADLE_VERSION="8.7"
+          elif [[ "$AGP_VERSION" == 8.3* || "$AGP_VERSION" == 8.4* ]]; then
+            GRADLE_VERSION="8.4"
+          else
+            GRADLE_VERSION="8.2"
+          fi
+          
+          gradle wrapper --gradle-version $GRADLE_VERSION
           chmod +x gradlew
 
-      # স্টেপ ২: AndroidX এনাবল করা এবং মেমোরি বুস্ট করা
-      - name: Auto-generate/Fix gradle.properties
+      # স্টেপ ৫: অপ্টিমাইজড প্রপার্টিজ ইঞ্জিন সেটআপ করা
+      - name: Setup Gradle Properties
         run: |
-          echo "🛠️ Configuring gradle.properties..."
-          if [ ! -f "gradle.properties" ]; then
-            touch gradle.properties
-          fi
-          echo "android.useAndroidX=true" >> gradle.properties
+          echo "android.useAndroidX=true" > gradle.properties
           echo "android.enableJetifier=true" >> gradle.properties
           echo "org.gradle.jvmargs=-Xmx3072m -XX:MaxMetaspaceSize=768m" >> gradle.properties
 
-      # স্টেপ ৩: (মাস্ট-হ্যাভ ফিক্স) গ্লোবাল গ্রেডল ইনিশিয়াল স্ক্রিপ্ট ইনজেক্ট করা, যা রিপোজিটরি লকিং বাইপাস করবে
-      - name: Inject Global Repositories Init Script
+      # স্টেপ ৬: প্রজেক্ট মোড ফোর্স করে ফাইনাল রিলিজ বিল্ড রান করা
+      - name: Build Split Release APKs
         run: |
-          mkdir -p ~/.gradle
-          cat << 'EOF' > ~/.gradle/init.gradle
-          allprojects {
-              buildscript {
-                  repositories {
-                      google()
-                      mavenCentral()
-                  }
-              }
-              repositories {
-                  google()
-                  mavenCentral()
-                  maven { url 'https://jitpack.io' }
-              }
-          }
-          settingsEvaluated { settings ->
-              settings.pluginManagement {
-                  repositories {
-                      google()
-                      mavenCentral()
-                  }
-              }
-              settings.dependencyResolutionManagement {
-                  repositoriesMode.set(RepositoriesMode.PREFER_SETTINGS)
-                  repositories {
-                      google()
-                      mavenCentral()
-                      maven { url 'https://jitpack.io' }
-                  }
-              }
-          }
-          EOF
-          echo "✅ Injected global init.gradle script to force Google & MavenCentral repos."
-
-      # স্টেপ ৪: অটো-ম্যাচড গ্রেডল ও গ্লোবাল ইনজেকশন ব্যবহার করে রিলিজ বিল্ড রান করা
-      - name: Clean & Build Split Release APKs
-        run: |
-          ./gradlew clean :app:assembleRelease --no-daemon --parallel --refresh-dependencies --stacktrace
-
-      # স্টেপ ৫: আর্টফ্যাক্টস ভেরিফাই করা
-      - name: Verify Generated APKs
-        run: ls -R app/build/outputs/apk/release/
-
-      # স্টেপ ৬: গিটহাবে রিলিজ পুশ করা
-      - name: Publish Release to GitHub
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ github.event.inputs.release_tag }}
-          name: ${{ github.event.inputs.release_name }}
-          body: ${{ github.event.inputs.release_body }}
-          draft: false
-          prerelease: ${{ github.event.inputs.prerelease == 'true' }}
-          files: app/build/outputs/apk/release/**/*.apk
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ./gradlew clean :app:assembleRelease --no-daemon --parallel --stacktrace -Dorg.gradle.dependency.resolution.control.mode=PREFER_PROJECT
