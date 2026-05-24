@@ -1,0 +1,88 @@
+name: Manual Android Release Build
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 'Release tag (for example v1.0.0)'
+        required: true
+        default: 'v1.0.0'
+      release_name:
+        description: 'Release title'
+        required: true
+        default: 'Manual APK Release'
+      release_body:
+        description: 'Release notes'
+        required: false
+        default: 'APK artifacts built manually via GitHub Actions.'
+      prerelease:
+        description: 'Mark this release as prerelease?'
+        required: false
+        default: 'false'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      # স্টেপ ১: প্রজেক্টের build.gradle ফাইল রিড করে সঠিক গ্রেডল ভার্সন ডিটেক্ট এবং র‍্যাপার জেনারেট করবে
+      - name: Detect AGP and Auto-generate Matching Gradle Wrapper
+        run: |
+          if [ ! -f "gradlew" ]; then
+            echo "⚠️ gradlew missing! Analyzing project files to match version..."
+            
+            # প্রজেক্টের রুট বা অ্যাপ লেভেলের build.gradle থেকে প্লাগইন/ক্লাসপাথ ভার্সন ডিটেক্ট করার চেষ্টা
+            AGP_VERSION=$(grep -oP "com.android.tools.build:gradle:\K[0-9.]+" build.gradle || grep -oP "id 'com.android.application' version '\K[0-9.]+" build.gradle || echo "8.2.2")
+            echo "🔍 Detected Android Gradle Plugin (AGP) Version: $AGP_VERSION"
+            
+            # AGP ভার্সনের ওপর ভিত্তি করে কম্প্যাটিবল গ্রেডল ভার্সন নির্ধারণ
+            if [[ "$AGP_VERSION" == 8.5* || "$AGP_VERSION" == 8.6* ]]; then
+              GRADLE_VERSION="8.7"
+            elif [[ "$AGP_VERSION" == 8.3* || "$AGP_VERSION" == 8.4* ]]; then
+              GRADLE_VERSION="8.4"
+            elif [[ "$AGP_VERSION" == 8.2* ]]; then
+              GRADLE_VERSION="8.2"
+            elif [[ "$AGP_VERSION" == 9.0* ]]; then
+              # যদি ভুলবশত ৯.০ থাকে, তবে সেটিকে হ্যান্ডেল করার জন্য লেটেস্ট স্টেবল ৮.x দেওয়া হলো
+              GRADLE_VERSION="8.5"
+            else
+              GRADLE_VERSION="8.5" # ডিফল্ট সেফ জোন ভার্সন
+            fi
+            
+            echo "🚀 Generating Gradle Wrapper matching your project ($GRADLE_VERSION)..."
+            gradle wrapper --gradle-version $GRADLE_VERSION
+          else
+            echo "✅ gradlew already found in repository. Using existing configuration."
+          fi
+          chmod +x gradlew
+
+      # স্টেপ ২: অটো-ম্যাচড গ্রেডল ব্যবহার করে ক্লিন বিল্ড রান করা
+      - name: Clean & Build Split Release APKs
+        run: |
+          ./gradlew clean :app:assembleRelease --no-daemon --parallel --refresh-dependencies
+
+      # স্টেপ ৩: আর্টফ্যাক্টস ভেরিফাই করা
+      - name: Verify Generated APKs
+        run: ls -R app/build/outputs/apk/release/
+
+      # স্টেপ ৪: গিটহাবে রিলিজ পুশ করা
+      - name: Publish Release to GitHub
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event.inputs.release_tag }}
+          name: ${{ github.event.inputs.release_name }}
+          body: ${{ github.event.inputs.release_body }}
+          draft: false
+          prerelease: ${{ github.event.inputs.prerelease == 'true' }}
+          files: app/build/outputs/apk/release/**/*.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
