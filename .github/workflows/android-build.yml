@@ -34,6 +34,24 @@ jobs:
           distribution: temurin
           java-version: '17'
 
+      - name: Install Android SDK components
+        uses: android-actions/setup-android@v2
+        with:
+          api-level: 34
+          build-tools: 34.0.0
+          components: |
+            platform-tools
+            platforms;android-34
+            build-tools;34.0.0
+
+      - name: Ensure Gradle is available
+        run: |
+          if ! command -v gradle >/dev/null; then
+            sudo apt-get update
+            sudo apt-get install -y gradle
+          fi
+          gradle --version
+
       - name: Cache Gradle packages
         uses: actions/cache@v4
         with:
@@ -47,7 +65,7 @@ jobs:
 
       - name: Build release APKs per ABI
         run: |
-          gradle --no-daemon :app:assembleRelease --parallel --split-per-abi
+          gradle --no-daemon :app:assembleRelease --parallel
 
       - name: Publish release with APKs
         uses: softprops/action-gh-release@v1
